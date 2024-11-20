@@ -13,5 +13,12 @@ final class AppFixtures extends Fixture
     public function load(ObjectManager $manager): void
     {
         DefaultStory::load();
+        $this->loadCategories($manager);
+    }
+
+    private function loadCategories(ObjectManager $manager): void
+    {
+        $categoryFixtures = new CategoryFixtures();
+        $categoryFixtures->load($manager);
     }
 }

@@ -29,8 +29,7 @@ class ReviewRepository extends ServiceEntityRepository
         $rating = $this->createQueryBuilder('r')
             ->select('AVG(r.rating)')
             ->where('r.book = :book')->setParameter('book', $book)
-            ->getQuery()->getSingleScalarResult()
-        ;
+            ->getQuery()->getSingleScalarResult();
 
         return $rating ? (int) $rating : null;
     }
@@ -51,5 +50,19 @@ class ReviewRepository extends ServiceEntityRepository
         if ($flush) {
             $this->getEntityManager()->flush();
         }
+    }
+
+    public function getHighestReviewDay(): ?string
+    {
+        $qb = $this->createQueryBuilder('r')
+            ->select('DATE(r.createdAt) AS review_date', 'COUNT(r.id) AS review_count')
+            ->groupBy('review_date')
+            ->orderBy('review_count', 'DESC')
+            ->addOrderBy('review_date', 'DESC') 
+            ->setMaxResults(1);
+
+        $result = $qb->getQuery()->getOneOrNullResult();
+
+        return $result ? $result['review_date'] : null;
     }
 }

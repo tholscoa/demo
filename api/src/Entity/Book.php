@@ -17,6 +17,7 @@ use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\Put;
 use ApiPlatform\Metadata\UrlGeneratorInterface;
 use App\Enum\BookCondition;
+use App\Enum\PromotionStatus;
 use App\Repository\BookRepository;
 use App\State\Processor\BookPersistProcessor;
 use App\State\Processor\BookRemoveProcessor;
@@ -193,13 +194,184 @@ class Book
     #[Groups(groups: ['Book:read', 'Book:read:admin', 'Bookmark:read'])]
     public ?int $rating = null;
 
+    //add field is_promoted.
+    #[ApiProperty(
+        example: false,
+        description: 'add field book is_promoted'
+    )]
+    #[Groups(groups: ['Book:read', 'Book:read:admin', 'Book:write'])]
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    public bool $isPromoted = false;
+
+    // // Change the field name and type to use a string enum-like approach
+    /**
+     * @Assert\NotBlank
+     * @Assert\Choice(choices={PromotionStatus::None, PromotionStatus::Basic, PromotionStatus::Pro})
+     * @ApiProperty(
+     *     description="The promotion status of the book",
+     *     example="Pro"
+     * )
+     * @Groups(groups={"Book:read", "Book:read:admin", "Book:write"})
+     * @Security("is_granted('ROLE_OIDC_ADMIN')")
+     * */
+    #[ORM\Column(type: 'string', enumType: PromotionStatus::class)] // Define enum column type
+    private PromotionStatus $promotionStatus;
+
+    //add field slug.
+    /**
+     * @Assert\NotBlank(message="Slug cannot be blank")
+     * @Assert\Length(min=5, minMessage="Slug must be at least 5 characters long")
+     * @Assert\Regex(
+     *     pattern="/^[a-z0-9-]+$/",
+     *     message="Slug must contain only lowercase letters, numbers, and hyphens"
+     * )
+     * @ApiProperty(
+     *     description="SEO-friendly URL slug for the book",
+     *     example="book-1",
+     * )
+     * @Groups(groups={"Book:read", "Book:write"})
+     */
+    #[ORM\Column(type: 'string', length: 255, unique: true)]
+    private $slug;
+
+    /**
+     * @ORM\ManyToMany(targetEntity="App\Entity\Category", inversedBy="books")
+     * @ORM\JoinTable(name="book_categories")
+     */
+    private $categories;
+    private $bookmarks;
+
     public function __construct()
     {
         $this->reviews = new ArrayCollection();
+        $this->categories = new ArrayCollection();
+        $this->bookmarks = new ArrayCollection();
     }
 
     public function getId(): ?Uuid
     {
         return $this->id;
     }
+
+    // Getter and setter for `author`
+    public function getAuthor(): ?string
+    {
+        return $this->author;
+    }
+
+    public function setAuthor(string $author): self
+    {
+        $this->author = $author;
+
+        return $this;
+    }
+
+    // Getter and setter for `title`
+    public function getTitle(): ?string
+    {
+        return $this->title;
+    }
+
+    public function setTitle(string $title): self
+    {
+        $this->title = $title;
+
+        return $this;
+    }
+
+    // Getter and setter for `reviews`
+    public function getReviews(): ?collection
+    {
+        return $this->reviews;
+    }
+
+    public function setReviews(collection $reviews): self
+    {
+        $this->reviews = $reviews;
+
+        return $this;
+    }
+
+    // Getter and setter for `isPromoted`
+    public function getIsPromoted(): bool
+    {
+        return $this->isPromoted;
+    }
+
+    public function setIsPromoted(bool $isPromoted): self
+    {
+        $this->isPromoted = $isPromoted;
+        $this->updatePromotionStatus(); // Automatically update `promotionStatus`
+
+        return $this;
+    }
+
+    // Getter and setter for `promotionStatus`
+    public function getPromotionStatus(): PromotionStatus
+    {
+        return $this->promotionStatus;
+    }
+
+    public function setPromotionStatus(PromotionStatus $promotionStatus): self
+    {
+        $this->promotionStatus = $promotionStatus;
+
+        return $this;
+    }
+
+    // Helper method to convert isPromoted to promotionStatus
+    private function updatePromotionStatus(): void
+    {
+        if ($this->isPromoted) {
+            $this->promotionStatus = 'Basic';
+        } else {
+            $this->promotionStatus = 'None';
+        }
+    }
+
+    // Getter and setter for `slug`
+    public function getSlug(): ?string
+    {
+        return $this->slug;
+    }
+
+    public function setSlug(string $slug): self
+    {
+        $this->slug = $slug;
+
+        return $this;
+    }
+
+    // generate a slug from the book ID
+    public function generateSlug(): void
+    {
+        $this->slug = 'book-' . $this->getId();
+    }
+
+    public function addCategory(Category $category): self
+    {
+        if (!$this->categories->contains($category)) {
+            $this->categories[] = $category;
+        }
+
+        return $this;
+    }
+
+    public function removeCategory(Category $category): self
+    {
+        $this->categories->removeElement($category);
+
+        return $this;
+    }
+
+    public function getBookmarks(): Collection
+    {
+        return $this->bookmarks;
+    }
+
+    public function getCategories(): Collection
+    {
+        return $this->categories;
+    }
+
 }

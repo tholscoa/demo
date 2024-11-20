@@ -31,4 +31,5 @@ trait EnumApiResourceTrait
 
         return self::tryFrom($name);
     }
+    
 }
